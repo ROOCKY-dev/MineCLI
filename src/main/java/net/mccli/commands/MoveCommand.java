@@ -18,6 +18,7 @@ public class MoveCommand implements Function<JsonObject, String> {
         CompletableFuture<String> future = new CompletableFuture<>();
         mc.execute(() -> {
             try {
+                net.mccli.events.MovementManager.target = null;
                 if (jsonObject.has("forward")) mc.options.keyUp.setDown(jsonObject.get("forward").getAsBoolean());
                 if (jsonObject.has("back")) mc.options.keyDown.setDown(jsonObject.get("back").getAsBoolean());
                 if (jsonObject.has("left")) mc.options.keyLeft.setDown(jsonObject.get("left").getAsBoolean());

@@ -7,7 +7,7 @@ import net.minecraft.client.Minecraft;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-public class LookCommand implements Function<JsonObject, String> {
+public class ExecuteCommand implements Function<JsonObject, String> {
     @Override
     public String apply(JsonObject jsonObject) {
         Minecraft mc = Minecraft.getInstance();
@@ -18,15 +18,20 @@ public class LookCommand implements Function<JsonObject, String> {
         CompletableFuture<String> future = new CompletableFuture<>();
         mc.execute(() -> {
             try {
-                net.mccli.events.MovementManager.target = null;
-                if (jsonObject.has("yaw")) mc.player.setYRot(jsonObject.get("yaw").getAsFloat());
-                if (jsonObject.has("pitch")) mc.player.setXRot(jsonObject.get("pitch").getAsFloat());
+                if (!jsonObject.has("cmd")) {
+                    future.complete(error("Missing 'cmd'"));
+                    return;
+                }
+                String cmd = jsonObject.get("cmd").getAsString();
+                if (cmd.startsWith("/")) cmd = cmd.substring(1);
+
+                mc.player.connection.sendCommand(cmd);
 
                 JsonObject response = new JsonObject();
                 response.addProperty("status", "success");
                 future.complete(CommandHandler.GSON.toJson(response));
             } catch (Exception e) {
-                future.complete(error("Error processing look: " + e.getMessage()));
+                future.complete(error("Error executing command: " + e.getMessage()));
             }
         });
 

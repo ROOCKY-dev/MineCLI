@@ -7,7 +7,7 @@ import net.minecraft.client.Minecraft;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-public class LookCommand implements Function<JsonObject, String> {
+public class EquipCommand implements Function<JsonObject, String> {
     @Override
     public String apply(JsonObject jsonObject) {
         Minecraft mc = Minecraft.getInstance();
@@ -18,15 +18,21 @@ public class LookCommand implements Function<JsonObject, String> {
         CompletableFuture<String> future = new CompletableFuture<>();
         mc.execute(() -> {
             try {
-                net.mccli.events.MovementManager.target = null;
-                if (jsonObject.has("yaw")) mc.player.setYRot(jsonObject.get("yaw").getAsFloat());
-                if (jsonObject.has("pitch")) mc.player.setXRot(jsonObject.get("pitch").getAsFloat());
-
-                JsonObject response = new JsonObject();
-                response.addProperty("status", "success");
-                future.complete(CommandHandler.GSON.toJson(response));
+                if (!jsonObject.has("slot")) {
+                    future.complete(error("Missing 'slot'"));
+                    return;
+                }
+                int slot = jsonObject.get("slot").getAsInt();
+                if (slot >= 0 && slot < 9) {
+                    mc.player.getInventory().selected = slot;
+                    JsonObject response = new JsonObject();
+                    response.addProperty("status", "success");
+                    future.complete(CommandHandler.GSON.toJson(response));
+                } else {
+                    future.complete(error("Invalid slot (0-8)"));
+                }
             } catch (Exception e) {
-                future.complete(error("Error processing look: " + e.getMessage()));
+                future.complete(error("Error equipping: " + e.getMessage()));
             }
         });
 

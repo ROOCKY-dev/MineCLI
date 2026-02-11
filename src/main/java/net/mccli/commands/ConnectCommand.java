@@ -3,30 +3,37 @@ package net.mccli.commands;
 import com.google.gson.JsonObject;
 import net.mccli.server.CommandHandler;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.ConnectScreen;
+import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.resolver.ServerAddress;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-public class LookCommand implements Function<JsonObject, String> {
+public class ConnectCommand implements Function<JsonObject, String> {
     @Override
     public String apply(JsonObject jsonObject) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) {
-            return error("Player not found");
-        }
 
         CompletableFuture<String> future = new CompletableFuture<>();
         mc.execute(() -> {
             try {
-                net.mccli.events.MovementManager.target = null;
-                if (jsonObject.has("yaw")) mc.player.setYRot(jsonObject.get("yaw").getAsFloat());
-                if (jsonObject.has("pitch")) mc.player.setXRot(jsonObject.get("pitch").getAsFloat());
+                if (!jsonObject.has("address")) {
+                    future.complete(error("Missing 'address'"));
+                    return;
+                }
+                String address = jsonObject.get("address").getAsString();
+                ServerAddress serverAddress = ServerAddress.parseString(address);
+                ServerData serverData = new ServerData("MC-CLI", address, ServerData.Type.OTHER);
+
+                ConnectScreen.startConnecting(new TitleScreen(), mc, serverAddress, serverData, false, null);
 
                 JsonObject response = new JsonObject();
                 response.addProperty("status", "success");
                 future.complete(CommandHandler.GSON.toJson(response));
             } catch (Exception e) {
-                future.complete(error("Error processing look: " + e.getMessage()));
+                future.complete(error("Error connecting: " + e.getMessage()));
             }
         });
 

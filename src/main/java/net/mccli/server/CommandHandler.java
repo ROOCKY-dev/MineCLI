@@ -29,6 +29,15 @@ public class CommandHandler {
         COMMANDS.put("view", new net.mccli.commands.GetViewCommand());
         COMMANDS.put("ui", new net.mccli.commands.GetUICommand());
         COMMANDS.put("click_slot", new net.mccli.commands.InventoryClickCommand());
+        COMMANDS.put("chat", new net.mccli.commands.ChatCommand());
+        COMMANDS.put("execute", new net.mccli.commands.ExecuteCommand());
+        COMMANDS.put("inspect", new net.mccli.commands.InspectBlockCommand());
+        COMMANDS.put("entities", new net.mccli.commands.GetEntitiesCommand());
+        COMMANDS.put("mine", new net.mccli.commands.MineCommand());
+        COMMANDS.put("place", new net.mccli.commands.PlaceCommand());
+        COMMANDS.put("equip", new net.mccli.commands.EquipCommand());
+        COMMANDS.put("connect", new net.mccli.commands.ConnectCommand());
+        COMMANDS.put("goto", new net.mccli.commands.GotoCommand());
     }
 
     public static String handle(String input) {

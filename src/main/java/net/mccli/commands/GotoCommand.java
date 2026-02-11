@@ -1,13 +1,15 @@
 package net.mccli.commands;
 
 import com.google.gson.JsonObject;
+import net.mccli.events.MovementManager;
 import net.mccli.server.CommandHandler;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-public class LookCommand implements Function<JsonObject, String> {
+public class GotoCommand implements Function<JsonObject, String> {
     @Override
     public String apply(JsonObject jsonObject) {
         Minecraft mc = Minecraft.getInstance();
@@ -18,15 +20,21 @@ public class LookCommand implements Function<JsonObject, String> {
         CompletableFuture<String> future = new CompletableFuture<>();
         mc.execute(() -> {
             try {
-                net.mccli.events.MovementManager.target = null;
-                if (jsonObject.has("yaw")) mc.player.setYRot(jsonObject.get("yaw").getAsFloat());
-                if (jsonObject.has("pitch")) mc.player.setXRot(jsonObject.get("pitch").getAsFloat());
+                if (!jsonObject.has("x") || !jsonObject.has("z")) { // y is optional maybe?
+                    future.complete(error("Missing coordinates"));
+                    return;
+                }
+                double x = jsonObject.get("x").getAsDouble();
+                double y = jsonObject.has("y") ? jsonObject.get("y").getAsDouble() : mc.player.getY();
+                double z = jsonObject.get("z").getAsDouble();
+
+                MovementManager.target = new Vec3(x, y, z);
 
                 JsonObject response = new JsonObject();
                 response.addProperty("status", "success");
                 future.complete(CommandHandler.GSON.toJson(response));
             } catch (Exception e) {
-                future.complete(error("Error processing look: " + e.getMessage()));
+                future.complete(error("Error setting target: " + e.getMessage()));
             }
         });
 

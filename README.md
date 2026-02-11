@@ -4,11 +4,13 @@ This NeoForge mod provides a socket-based API (CLI) for external agents (AI, scr
 
 ## Features
 *   **State Observation**: Get player health, position, hunger, etc.
-*   **Inventory**: Inspect inventory items.
-*   **Movement**: Control movement (WASD, jump, sneak).
-*   **Interaction**: Attack, use items, interact with blocks/entities.
-*   **Vision**: Get screenshots of the current view.
-*   **UI**: Inspect open container GUIs (chests, inventory, etc.).
+*   **Inventory**: Inspect inventory items and containers.
+*   **Movement**: Control movement (WASD, jump, sneak) or pathfind to coordinates.
+*   **Interaction**: Attack, use items, mine blocks, place blocks.
+*   **Vision**: Get screenshots of the current view and inspect nearby blocks/entities.
+*   **Communication**: Send/Receive chat messages and execute commands.
+*   **Connectivity**: Connect to servers programmatically.
+*   **Events**: Receive real-time JSON events (chat, death, join).
 
 ## Installation
 1.  Build the mod: `./gradlew build`
@@ -16,13 +18,12 @@ This NeoForge mod provides a socket-based API (CLI) for external agents (AI, scr
 3.  Launch Minecraft with NeoForge 1.21.4.
 
 ## Usage
-The mod starts a TCP server on port **25566** when the client loads.
-You can connect to it using `netcat`, Python, or any TCP client.
+The mod starts a TCP server on port **25566** (localhost) when the client loads.
 
 ### Protocol
 Send a JSON string ending with a newline.
-The JSON must have a `command` field.
 The server responds with a JSON string ending with a newline.
+The server also sends asynchronous JSON events.
 
 ### Commands
 
@@ -31,15 +32,31 @@ Check connectivity.
 *   Request: `{"command": "ping"}`
 *   Response: `{"status": "success", "message": "pong"}`
 
+#### `connect`
+Connect to a server.
+*   Request: `{"command": "connect", "address": "localhost:25565"}`
+
+#### `chat`
+Send chat message.
+*   Request: `{"command": "chat", "message": "Hello world"}`
+
+#### `execute`
+Execute slash command (without slash usually, or with).
+*   Request: `{"command": "execute", "cmd": "gamemode creative"}`
+
 #### `state`
 Get player state.
 *   Request: `{"command": "state"}`
-*   Response: `{"status": "success", "data": { ... }}`
+*   Response: `{"status": "success", "data": { "x": 100, "y": 64, "z": 100, "health": 20, ... }}`
 
 #### `inventory`
 Get player inventory.
 *   Request: `{"command": "inventory"}`
-*   Response: `{"status": "success", "data": { "main": [...], "armor": [...], ... }}`
+*   Response: `{"status": "success", "data": { "main": [...], "armor": [...], "offhand": [...] }}`
+
+#### `equip`
+Select hotbar slot.
+*   Request: `{"command": "equip", "slot": 0}`
 
 #### `move`
 Control movement keys.
@@ -50,33 +67,52 @@ Control movement keys.
 Set player rotation.
 *   Request: `{"command": "look", "yaw": 0.0, "pitch": 0.0}`
 
+#### `goto`
+Simple pathfinding to coordinates.
+*   Request: `{"command": "goto", "x": 100, "z": 100}`
+*   (Optional `y` to target specific height).
+*   Stops when within 0.5 blocks.
+
 #### `interact`
 Perform actions.
 *   Request: `{"command": "interact", "action": "attack"}`
-*   Actions:
-    *   `attack`: Left click (attack entity or break block).
-    *   `use`: Right click (use item or interact block).
-    *   `stop_use`: Release right click.
-    *   `drop`: Drop selected item.
-    *   `drop_stack`: Drop selected stack.
+*   Actions: `attack`, `use`, `stop_use`, `drop`, `drop_stack`.
+
+#### `mine`
+Mine block at coordinates.
+*   Request: `{"command": "mine", "x": 100, "y": 64, "z": 100}`
+
+#### `place`
+Place block at coordinates.
+*   Request: `{"command": "place", "x": 100, "y": 64, "z": 100, "face": "UP"}`
+
+#### `inspect`
+Inspect block at coordinates.
+*   Request: `{"command": "inspect", "x": 100, "y": 64, "z": 100}`
+*   Response: `{"status": "success", "data": { "id": "minecraft:stone", "properties": {...}, "nbt": "..." }}`
+
+#### `entities`
+Get nearby entities.
+*   Request: `{"command": "entities", "radius": 50, "type": "minecraft:zombie"}`
+*   Response: `{"status": "success", "data": [...]}`
 
 #### `view`
 Get a screenshot.
 *   Request: `{"command": "view"}`
-*   Response: `{"status": "success", "image": "<base64_png>", "width": ..., "height": ...}`
+*   Response: `{"status": "success", "image": "<base64_png>"}`
 
 #### `ui`
-Get current UI info (open container slots).
+Get current UI info.
 *   Request: `{"command": "ui"}`
-*   Response: `{"status": "success", "type": "...", "containerId": 1, "slots": [...]}`
+*   Response: `{"status": "success", "containerId": 1, "slots": [...]}`
 
 #### `click_slot`
 Click a slot in an open container.
 *   Request: `{"command": "click_slot", "containerId": 1, "slot": 0, "button": 0, "type": "PICKUP"}`
-*   `containerId`: ID from `ui` command.
-*   `slot`: Slot index to click.
-*   `button`: 0 (Left), 1 (Right).
-*   `type`: `PICKUP`, `QUICK_MOVE` (Shift-click), `SWAP`, `CLONE`, `THROW`, `QUICK_CRAFT`, `PICKUP_ALL`.
 
-## Mod Compatibility
-The API uses registry names (e.g. `minecraft:stone`, `mekanism:osmium_ingot`) and standard NeoForge/Minecraft abstractions (`AbstractContainerMenu`, `HitResult`), ensuring compatibility with most mods.
+### Events
+The server sends JSON objects with an "event" field.
+
+*   **Chat**: `{"event": "chat", "message": "Player joined the game"}`
+*   **Death**: `{"event": "death", "message": "Player died"}`
+*   **Join**: `{"event": "join", "dimension": "minecraft:overworld"}`

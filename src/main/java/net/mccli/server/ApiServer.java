@@ -1,5 +1,6 @@
 package net.mccli.server;
 
+import com.google.gson.JsonObject;
 import net.mccli.McCliMod;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -7,11 +8,15 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 public class ApiServer {
     private static final int PORT = 25566;
     private static boolean running = false;
     private static ServerSocket serverSocket;
+    private static final Set<PrintWriter> clients = Collections.synchronizedSet(new HashSet<>());
 
     public static void start() {
         if (running) return;
@@ -47,11 +52,22 @@ public class ApiServer {
         }
     }
 
+    public static void broadcast(JsonObject json) {
+        String message = CommandHandler.GSON.toJson(json);
+        synchronized (clients) {
+            for (PrintWriter client : clients) {
+                client.println(message);
+            }
+        }
+    }
+
     private static void handleClient(Socket clientSocket) {
-        try (
-            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+        PrintWriter out = null;
+        try {
+            out = new PrintWriter(clientSocket.getOutputStream(), true);
+            clients.add(out);
             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-        ) {
+
             String inputLine;
             while ((inputLine = in.readLine()) != null) {
                 String response = CommandHandler.handle(inputLine);
@@ -60,6 +76,10 @@ public class ApiServer {
         } catch (IOException e) {
             McCliMod.LOGGER.error("Error handling client connection", e);
         } finally {
+            if (out != null) {
+                clients.remove(out);
+                out.close();
+            }
             try {
                 clientSocket.close();
             } catch (IOException e) {
